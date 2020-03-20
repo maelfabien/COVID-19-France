@@ -127,7 +127,7 @@ geosource = GeoJSONDataSource(geojson = grid)
 pointsource = ColumnDataSource(df_dep_today)
 
 hover = HoverTool(
-    tooltips = [('Place', '@maille_nom'), ('Confirmed cases','@cas_confirmes'),('Deaths','@deces'), ('Reanimation','@reanimation'), ('URL', '@source_url')]
+    tooltips = [('Place', '@maille_nom'), ('Confirmed cases','@cas_confirmes'),('Deaths','@deces'), ('Reanimation','@reanimation')]
 )
 
 #Create figure object.
