@@ -3,6 +3,7 @@ import streamlit as st
 # Base packages
 import pandas as pd
 import numpy as np
+import datetime
 
 # Visualization
 import matplotlib.pyplot as plt
@@ -28,23 +29,47 @@ from bokeh.models import HoverTool
 
 st.title("COVID-19 in France")
 
-df = pd.read_csv("https://raw.githubusercontent.com/opencovid19-fr/data/master/dist/chiffres-cles.csv")
 st.write("An analysis of COVID-19 cases in France, day by day, department by department.")
+
+df = pd.read_csv("https://raw.githubusercontent.com/opencovid19-fr/data/master/dist/chiffres-cles.csv")
+df['date'] = pd.to_datetime(df['date'])
+df = df[['date', 'granularite', 'maille_code', 'maille_nom', 'cas_confirmes', 'deces', 'reanimation']]
+df = df[df['granularite'] == 'departement']
+
+
+date_time_str = '2020-01-24'
+base = datetime.datetime.strptime(date_time_str, '%Y-%m-%d')
+
+date_list = [base + datetime.timedelta(days=x) for x in range(56)]
+list_maille_code = np.unique(df['maille_code'])
+
+for date in date_list:
+    for dep in list_maille_code:
+        if len(df[(df['date'] == date) & (df['maille_code'] == dep)]) == 0:
+            if date == '2020-01-24':
+                if list(df[(df['maille_code'] == dep) & (df['date'] == date)]['cas_confirmes']) == [] and list(df[(df['maille_code'] == dep) & (df['date'] == date)]['deces']) == [] and list(df[(df['maille_code'] == dep) & (df['date'] == date)]['reanimation']) == [] :
+                    df = df.append({'date':date, 'granularite':'departement', 'maille_code': dep, 'maille_nom':list(df[df['maille_code'] == dep]['maille_nom'])[0], 'cas_confirmes':0, 'deces':0, 'reanimation':0}, ignore_index=True)
+            else:
+                yesterday = date - datetime.timedelta(days=1)
+                if list(df[(df['maille_code'] == dep) & (df['date'] == yesterday)]['cas_confirmes']) == [] and list(df[(df['maille_code'] == dep) & (df['date'] == yesterday)]['deces']) == [] and list(df[(df['maille_code'] == dep) & (df['date'] == yesterday)]['reanimation']) == [] :
+                    df = df.append({'date':date, 'granularite':'departement', 'maille_code': dep, 'maille_nom':list(df[df['maille_code'] == dep]['maille_nom'])[0], 'cas_confirmes':0, 'deces':0, 'reanimation':0}, ignore_index=True)
+                else:
+                    df = df.append({'date':date, 'granularite':'departement', 'maille_code': dep, 'maille_nom':list(df[df['maille_code'] == dep]['maille_nom'])[0], 'cas_confirmes':list(df[(df['maille_code'] == dep) & (df['date'] == yesterday)]['cas_confirmes'])[0], 'deces':list(df[(df['maille_code'] == dep) & (df['date'] == yesterday)]['deces'])[0], 'reanimation': list(df[(df['maille_code'] == dep) & (df['date'] == yesterday)]['reanimation'])[0]}, ignore_index=True)
+            
+df = df.sort_values(by=['date', 'maille_code'])
+
 st.write(df)
 
 st.markdown("---")
 st.subheader("Evolution of the cases per department")
 
-total_days = list(np.unique(df['date']))
+total_days = list(np.unique(df['date'].apply(lambda x: str(x))))
 
 department = st.selectbox("Select a department", list(np.unique(df['maille_nom'])))
 start_date = st.selectbox("Select a start date", total_days)
 end_date = st.selectbox("Select an end date", total_days, len(total_days)-1)
 
 df_restrict = df[(df['maille_nom'] == department) & (df['date'] >= start_date) & (df['date'] <= end_date)]
-
-#df[df['maille_code'] == department]['cas_confirmes']
-#name = df[df['maille_code'] == department]['maille_nom']
 
 chart = alt.Chart(df_restrict).mark_line().encode(
     x='date:T',
